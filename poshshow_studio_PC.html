@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Posh Live · Seller Studio</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { background: #F5F5F5; color: #111; }
+  button, input, select, textarea { font-family: inherit; }
+  input, select, textarea { outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: #7F0353 !important; box-shadow: 0 0 0 3px rgba(127,3,83,.1); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+  * { -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+const BRAND = "#7F0353";
+const BRAND_LIGHT = "#F7EEF4";
+const BRAND_DARK = "#5C0039";
+
+const SHOWS = [
+  { id:1, status:"live",      emoji:"👗", title:"Spring Closet Cleanout",     date:"2025.04.12 14:00", peakViewers:null, totalViewers:null, gmv:null },
+  { id:2, status:"scheduled", emoji:"👜", title:"Designer Bags Under $50",    date:"2025.04.14 18:00", peakViewers:null, totalViewers:null, gmv:null },
+  { id:3, status:"scheduled", emoji:"👟", title:"Sneaker & Streetwear Drop",  date:"2025.04.17 20:00", peakViewers:null, totalViewers:null, gmv:null },
+  { id:4, status:"ended",     emoji:"👒", title:"Vintage Hat Collection",     date:"2025.04.05 15:00", peakViewers:247,  totalViewers:183,  gmv:920  },
+  { id:5, status:"ended",     emoji:"💍", title:"Jewelry & Accessories Haul", date:"2025.03.28 16:00", peakViewers:389,  totalViewers:312,  gmv:2150 },
+];
+
+const INIT_PRODUCTS = {
+  2:[
+    {id:1,emoji:"👜",name:"LV Neverfull MM (Damier)",price:"$240",livePrice:"$195",type:"Buy Now"},
+    {id:2,emoji:"👝",name:"Coach Crossbody Leather", price:"$89", livePrice:"$68", type:"Buy Now"},
+    {id:3,emoji:"💼",name:"Gucci Soho Disco (Black)",price:"$310",livePrice:"$265",type:"Auction"},
+  ],
+  3:[
+    {id:1,emoji:"👕",name:"Supreme Box Logo Tee (M)",    price:"$85", livePrice:"$70",type:"Buy Now"},
+    {id:2,emoji:"👟",name:"Nike Air Max 90 (White/Red)", price:"$120",livePrice:"$95",type:"Auction"},
+    {id:3,emoji:"🧢",name:"Poshmark Cap",                price:"$0",  livePrice:"$0", type:"Giveaway"},
+  ],
+  4:[
+    {id:1,emoji:"👒",name:"Straw Sun Hat (Beige)",    price:"$35",livePrice:"$28",type:"Buy Now"},
+    {id:2,emoji:"🎩",name:"Vintage Fedora (Black)",   price:"$55",livePrice:"$44",type:"Auction"},
+    {id:3,emoji:"⛑",name:"Canvas Bucket Hat",        price:"$28",livePrice:"$22",type:"Buy Now"},
+  ],
+  5:[
+    {id:1,emoji:"💍",name:"Gold Ring Set (3pcs)",       price:"$120",livePrice:"$95", type:"Buy Now"},
+    {id:2,emoji:"📿",name:"Pearl Necklace (Freshwater)",price:"$85", livePrice:"$68", type:"Auction"},
+    {id:3,emoji:"💎",name:"Crystal Drop Earrings",      price:"$45", livePrice:"$36", type:"Buy Now"},
+    {id:4,emoji:"⌚",name:"Gold-tone Watch",             price:"$200",livePrice:"$160",type:"Buy Now"},
+  ],
+};
+
+const CAL_SHOWS = [
+  {day:12,title:"Spring Closet Cleanout",live:true},
+  {day:14,title:"Designer Bags Under $50"},
+  {day:17,title:"Sneaker & Streetwear"},
+  {day:20,title:"Y2K Denim Haul"},
+  {day:24,title:"Luxury Accessories"},
+];
+
+const BAR_DATA = [
+  {label:"Mar 15",val:920},{label:"Mar 18",val:1240},{label:"Mar 21",val:680},{label:"Mar 24",val:1840},
+  {label:"Mar 28",val:2150},{label:"Apr 1",val:910},{label:"Apr 3",val:1380},{label:"Apr 5",val:1620},
+  {label:"Apr 8",val:780},{label:"Apr 12",val:2400},
+];
+
+const iS = {width:"100%",padding:"9px 12px",border:"1px solid #e5e5e5",borderRadius:8,fontSize:13,background:"#fff",color:"#111"};
+
+const BtnP = ({children,onClick,style}) => (
+  <button onClick={onClick}
+    onMouseEnter={e=>e.currentTarget.style.background=BRAND_DARK}
+    onMouseLeave={e=>e.currentTarget.style.background=BRAND}
+    style={{background:BRAND,color:"#fff",border:"none",padding:"9px 18px",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:500,whiteSpace:"nowrap",...style}}>
+    {children}
+  </button>
+);
+
+const BtnS = ({children,onClick,style}) => (
+  <button onClick={onClick}
+    style={{background:"#fff",color:"#111",border:"1px solid #ddd",padding:"6px 12px",borderRadius:8,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",...style}}>
+    {children}
+  </button>
+);
+
+const Badge = ({status}) => {
+  const m={live:{bg:"#FDECEA",color:"#A32D2D",label:"● Live"},scheduled:{bg:"#E6F1FB",color:"#185FA5",label:"◇ Scheduled"},ended:{bg:"#F1EFE8",color:"#5F5E5A",label:"Ended"}};
+  const s=m[status];
+  return <span style={{background:s.bg,color:s.color,fontSize:11,fontWeight:500,padding:"3px 9px",borderRadius:20,whiteSpace:"nowrap"}}>{s.label}</span>;
+};
+
+const TypeBadge = ({type}) => {
+  const m={"Buy Now":["#E6F1FB","#185FA5"],"Auction":["#FAEEDA","#854F0B"],"Giveaway":["#EAF3DE","#3B6D11"]};
+  const [bg,color]=m[type]||["#F1EFE8","#5F5E5A"];
+  return <span style={{background:bg,color,fontSize:11,fontWeight:500,padding:"2px 8px",borderRadius:20,whiteSpace:"nowrap"}}>{type}</span>;
+};
+
+const SC = ({label,value,sub}) => (
+  <div style={{background:"#F9F9F9",borderRadius:8,padding:16}}>
+    <div style={{fontSize:12,color:"#888",marginBottom:6}}>{label}</div>
+    <div style={{fontSize:20,fontWeight:600,color:"#111"}}>{value}</div>
+    {sub&&<div style={{fontSize:12,color:"#888",marginTop:4}}>{sub}</div>}
+  </div>
+);
+
+const FR = ({label,hint,children}) => (
+  <div style={{marginBottom:16}}>
+    <label style={{fontSize:13,fontWeight:500,color:"#111",marginBottom:6,display:"block"}}>
+      {label}{hint&&<span style={{fontSize:12,color:"#999",fontWeight:400,marginLeft:4}}>{hint}</span>}
+    </label>
+    {children}
+  </div>
+);
+
+const Toggle = ({label,desc}) => {
+  const [on,setOn]=useState(false);
+  return (
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"16px 0",borderBottom:"1px solid #f0f0f0"}}>
+      <div style={{flex:1,paddingRight:16}}>
+        <div style={{fontSize:14,fontWeight:500,marginBottom:4}}>{label}</div>
+        <div style={{fontSize:13,color:"#666",lineHeight:1.5}}>{desc}</div>
+      </div>
+      <div onClick={()=>setOn(v=>!v)} style={{width:44,height:24,borderRadius:12,cursor:"pointer",flexShrink:0,background:on?BRAND:"#ccc",position:"relative",transition:"background .2s",marginTop:2}}>
+        <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:on?23:3,transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}}/>
+      </div>
+    </div>
+  );
+};
+
+const Breadcrumb = ({items,onBack}) => (
+  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20}}>
+    <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",padding:0,display:"flex",alignItems:"center",gap:4}}>
+      ← Shows
+    </button>
+    {items.map((item,i)=>(
+      <span key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+        <span style={{color:"#ccc"}}>/</span>
+        <span style={{fontSize:13,fontWeight:i===items.length-1?500:400,color:i===items.length-1?"#111":"#666"}}>{item}</span>
+      </span>
+    ))}
+  </div>
+);
+
+const ShowInfoBar = ({show}) => (
+  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"14px 20px",marginBottom:24}}>
+    <div style={{display:"flex",alignItems:"center",gap:12}}>
+      <div style={{width:40,height:40,borderRadius:8,background:"#EEF2FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{show?.emoji}</div>
+      <div>
+        <div style={{fontSize:14,fontWeight:500}}>{show?.title}</div>
+        <div style={{fontSize:12,color:"#999",marginTop:2}}>{show?.date}</div>
+      </div>
+    </div>
+    <Badge status={show?.status}/>
+  </div>
+);
+
+// ── Shows List ─────────────────────────────────────────────────────────
+
+function ShowsPage({onGo}) {
+  const [filter,setFilter]=useState("all");
+  const filtered=filter==="all"?SHOWS:SHOWS.filter(s=>s.status===filter);
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <span style={{fontSize:18,fontWeight:600}}>Shows</span>
+        <div style={{display:"flex",gap:10}}>
+          <BtnS onClick={()=>onGo("calendar",null)}>
+            <span style={{marginRight:5}}>📅</span>Calendar
+          </BtnS>
+          <BtnP onClick={()=>onGo("edit",null)}>+ Schedule a Show</BtnP>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        <input placeholder="Search by title" style={{...iS,width:220}}/>
+        <select style={{...iS,width:150}} value={filter} onChange={e=>setFilter(e.target.value)}>
+          <option value="all">All statuses</option>
+          <option value="live">Live</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="ended">Ended</option>
+        </select>
+        <BtnS>Search</BtnS>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,overflow:"hidden"}}>
+        <div style={{display:"grid",gridTemplateColumns:"90px minmax(0,1fr) 90px 90px 100px 130px",padding:"10px 16px",borderBottom:"1px solid #f0f0f0",fontSize:12,color:"#999",gap:8}}>
+          <div>Status</div><div>Show</div><div>Peak viewers</div><div>Total viewers</div><div>GMV</div><div>Actions</div>
+        </div>
+        {filtered.map((show,idx)=>{
+          const isLive=show.status==="live",isEnded=show.status==="ended",isSched=show.status==="scheduled";
+          return (
+            <div key={show.id} style={{display:"grid",gridTemplateColumns:"90px minmax(0,1fr) 90px 90px 100px 130px",padding:"13px 16px",gap:8,alignItems:"center",borderBottom:idx<filtered.length-1?"1px solid #f5f5f5":"none",background:isLive?"#FFFBFA":"transparent",opacity:isEnded?0.8:1}}>
+              <div><Badge status={show.status}/></div>
+              <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                <div style={{width:42,height:42,borderRadius:8,flexShrink:0,background:isLive?"#FDE8E0":isEnded?"#F2F2F2":"#EEF2FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{show.emoji}</div>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{show.title}</div>
+                  <div style={{fontSize:12,color:"#999",marginTop:2}}>{show.date}</div>
+                </div>
+              </div>
+              <div style={{fontSize:13,color:"#555"}}>
+                {isLive?<span style={{fontSize:11,color:"#A32D2D",background:"#FDECEA",padding:"2px 7px",borderRadius:20}}>Counting...</span>:show.peakViewers!=null?`${show.peakViewers}`:"—"}
+              </div>
+              <div style={{fontSize:13,color:"#555"}}>{isLive?"":show.totalViewers!=null?`${show.totalViewers}`:"—"}</div>
+              <div style={{fontSize:13,color:"#555",fontWeight:show.gmv?500:400}}>{isLive?"":show.gmv!=null?`$${show.gmv.toLocaleString()}`:"—"}</div>
+              <div style={{display:"flex",gap:5}}>
+                {isEnded&&<BtnS onClick={()=>onGo("stats",show)}>Stats</BtnS>}
+                {isSched&&<BtnS onClick={()=>onGo("edit",show)}>Edit</BtnS>}
+                {isSched&&<BtnS onClick={()=>onGo("products",show)}>Items</BtnS>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Edit Page ──────────────────────────────────────────────────────────
+
+function EditPage({show,onBack}) {
+  const isNew=!show;
+  return (
+    <div>
+      <Breadcrumb items={[isNew?"Schedule a Show":"Edit Show"]} onBack={onBack}/>
+      {!isNew&&<ShowInfoBar show={show}/>}
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:28,maxWidth:640}}>
+        <div style={{marginBottom:24,paddingBottom:24,borderBottom:"1px solid #f0f0f0"}}>
+          <div style={{fontSize:15,fontWeight:600,marginBottom:4}}>Covershot</div>
+          <div style={{fontSize:13,color:"#666",marginBottom:14,lineHeight:1.5}}>Select a covershot that best represents what you plan to showcase during your Posh Show. This is how your covershot will be shown to users.</div>
+          <div style={{width:140,height:140,borderRadius:10,background:"#f9f9f9",border:"1px dashed #ddd",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:6}}>
+            <div style={{fontSize:28}}>🖼</div>
+            <div style={{fontSize:12,color:"#999"}}>Click to upload</div>
+          </div>
+        </div>
+        <div style={{marginBottom:24,paddingBottom:24,borderBottom:"1px solid #f0f0f0"}}>
+          <div style={{fontSize:15,fontWeight:600,marginBottom:4}}>Basic Settings</div>
+          <div style={{fontSize:13,color:"#666",marginBottom:14,lineHeight:1.5}}>Make sure the title clearly highlights the brands and key features of the items.</div>
+          <FR label="Title"><input style={iS} defaultValue={show?.title||""} placeholder="[Brand, Brand] Show title here"/></FR>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <FR label="Start Date"><input type="date" style={iS} defaultValue="2025-04-14"/></FR>
+            <FR label="Start Time"><input type="time" style={iS} defaultValue="18:00"/></FR>
+          </div>
+          <FR label="Show Type"><select style={iS}><option>Live Show</option><option>Auction Show</option></select></FR>
+        </div>
+        <div style={{marginBottom:24,paddingBottom:24,borderBottom:"1px solid #f0f0f0"}}>
+          <div style={{fontSize:15,fontWeight:600,marginBottom:4}}>Information</div>
+          <div style={{fontSize:13,color:"#666",marginBottom:14,lineHeight:1.5}}>Providing clear information about the main items in your show helps us recommend it to the right audience. When adding a Brand Tag, please enter the brand name accurately.</div>
+          <FR label="Live Category" hint="*">
+            <select style={iS}><option value="">Select a category</option><option>Women's Clothing</option><option>Men's Clothing</option><option>Bags & Accessories</option><option>Shoes</option><option>Jewelry & Watches</option><option>Home & Garden</option></select>
+          </FR>
+          <FR label="Brand Tag" hint="(Optional)"><input style={iS} placeholder="e.g. Nike, Gucci, Lululemon"/></FR>
+          <FR label="Sell Style" hint="(Optional)"><select style={iS}><option value="">Select</option><option>Auction</option><option>Buy Now</option><option>Mixed</option></select></FR>
+          <FR label="Show Theme" hint="(Optional)"><select style={iS}><option value="">Select</option><option>New with Tags</option><option>Luxury</option><option>Vintage</option><option>Streetwear</option><option>Seasonal</option></select></FR>
+        </div>
+        <Toggle label="Low Starts" desc="Auction starting price is set to $5 for all listings and cannot be changed after scheduling show."/>
+        <Toggle label="Accept Shared Listings" desc="By enabling, you commit to auction community listings. In return, see more viewers in your show!"/>
+        <div style={{display:"flex",gap:10,marginTop:28}}>
+          <BtnP>{isNew?"Schedule":"Save Changes"}</BtnP>
+          <BtnS onClick={onBack}>Cancel</BtnS>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Stats Page ─────────────────────────────────────────────────────────
+
+function StatsPage({show,onBack}) {
+  const tv=show?.totalViewers||0,pv=show?.peakViewers||0,gmv=show?.gmv||0;
+  return (
+    <div>
+      <Breadcrumb items={["Stats"]} onBack={onBack}/>
+      <ShowInfoBar show={show}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
+        <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:20}}>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Sales</div>
+          <div style={{fontSize:12,color:"#999",marginBottom:2}}>Total GMV</div>
+          <div style={{fontSize:24,fontWeight:700,marginBottom:16}}>${gmv.toLocaleString()}</div>
+          {[["Items viewed",`${Math.round(pv*0.34)}`],["Items sold",`${Math.round(pv/9)}`]].map(([k,v])=>(
+            <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:"1px solid #f5f5f5",fontSize:13}}>
+              <span style={{color:"#666"}}>{k}</span><span style={{fontWeight:500}}>{v}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:20}}>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Viewership</div>
+          {[["Total viewers",`${tv}`],["Peak concurrent",`${pv}`],["Logged-in",`${Math.round(tv*0.72)}`],["Guests",`${Math.round(tv*0.28)}`],["New followers",`${Math.round(tv*0.31)}`]].map(([k,v])=>(
+            <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:"1px solid #f5f5f5",fontSize:13}}>
+              <span style={{color:"#666"}}>{k}</span><span style={{fontWeight:500}}>{v}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:20}}>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Engagement</div>
+          {[["Chats",`${Math.round(tv*4.2)}`],["Likes",`${Math.round(tv*2.8)}`],["Saves",`${Math.round(tv*1.1)}`],["Follows",`${Math.round(tv*0.4)}`],["Shares",`${Math.round(tv*0.2)}`]].map(([k,v])=>(
+            <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:"1px solid #f5f5f5",fontSize:13}}>
+              <span style={{color:"#666"}}>{k}</span><span style={{fontWeight:500}}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:20,marginBottom:20}}>
+        <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>Conversion & Retention</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+          <SC label="Avg. watch time" value="14 min"/>
+          <SC label="View → buy rate" value="8.4%"/>
+          <SC label="Items sold" value={`${Math.round(pv/9)}`}/>
+          <SC label="GMV per viewer" value={tv?`$${(gmv/tv).toFixed(1)}`:"—"}/>
+        </div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:20,marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:600}}>Viewers over time</div>
+          <div style={{display:"flex",gap:10,fontSize:12}}>
+            {["All","Female","Male"].map(f=>(
+              <label key={f} style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",color:"#666"}}>
+                <input type="checkbox" defaultChecked style={{accentColor:BRAND}}/>{f}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:6,height:100}}>
+          {[183,210,247,232,198,215,189,175,160,142,130,118].map((v,i)=>(
+            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+              <div style={{width:"100%",height:Math.round(v/247*90),background:"#E8BFD4",borderRadius:"3px 3px 0 0",cursor:"pointer",transition:"background .12s"}}
+                onMouseEnter={e=>e.target.style.background=BRAND}
+                onMouseLeave={e=>e.target.style.background="#E8BFD4"}/>
+              <div style={{fontSize:10,color:"#aaa"}}>{i*5}m</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:20}}>
+        <div style={{fontSize:13,fontWeight:600,marginBottom:14}}>Traffic sources</div>
+        <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:12}}>
+          {[["Preview page","38%","#7F0353"],["Feed","28%","#B05090"],["Direct","18%","#D4A0C0"],["Search","11%","#E8BFD4"],["Other","5%","#F0D8E8"]].map(([l,p,c])=>(
+            <div key={l} style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{width:10,height:10,borderRadius:"50%",background:c}}/>
+              <span style={{fontSize:13,color:"#666"}}>{l}</span>
+              <span style={{fontSize:13,fontWeight:600}}>{p}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",height:12,borderRadius:6,overflow:"hidden"}}>
+          {[["38%","#7F0353"],["28%","#B05090"],["18%","#D4A0C0"],["11%","#E8BFD4"],["5%","#F0D8E8"]].map(([w,c],i)=>(
+            <div key={i} style={{width:w,background:c}}/>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Products Page ──────────────────────────────────────────────────────
+
+function CloneModal({onClose,onClone}) {
+  const endedShows = SHOWS.filter(s=>s.status==="ended");
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.4)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:"#fff",borderRadius:14,padding:28,width:520,maxWidth:"90vw",boxShadow:"0 20px 60px rgba(0,0,0,.15)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+          <div style={{fontSize:16,fontWeight:600}}>Clone from a past show</div>
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#aaa",lineHeight:1}}>×</button>
+        </div>
+        <div style={{fontSize:13,color:"#888",marginBottom:20,lineHeight:1.6,padding:"10px 14px",background:"#F9F9F9",borderRadius:8,borderLeft:"3px solid #E8BFD4"}}>
+          The item list registered at the end of the selected show will be copied to this show as-is.
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {endedShows.map(s=>{
+            const items=INIT_PRODUCTS[s.id]||[];
+            return (
+              <div key={s.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",border:"1px solid #eee",borderRadius:10,background:"#fafafa"}}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{width:38,height:38,borderRadius:8,background:"#F2F2F2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{s.emoji}</div>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:500,marginBottom:2}}>{s.title}</div>
+                    <div style={{fontSize:12,color:"#999"}}>{s.date} &nbsp;·&nbsp;
+                      <span style={{color:"#7F0353",fontWeight:500}}>{items.length} items</span>
+                    </div>
+                  </div>
+                </div>
+                <BtnP onClick={()=>{onClone(items);onClose();}} style={{padding:"7px 16px",fontSize:12}}>Copy items</BtnP>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{marginTop:16,textAlign:"right"}}>
+          <BtnS onClick={onClose}>Cancel</BtnS>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductsPage({show,onBack}) {
+  const [products,setProducts]=useState(INIT_PRODUCTS[show?.id]||[]);
+  const [editingId,setEditingId]=useState(null);
+  const [showDD,setShowDD]=useState(false);
+  const [showClone,setShowClone]=useState(false);
+  const dragIdx=useRef(null),overIdx=useRef(null);
+
+  const onDragStart=i=>{dragIdx.current=i;};
+  const onDragOver=(e,i)=>{e.preventDefault();overIdx.current=i;};
+  const onDrop=()=>{
+    if(dragIdx.current===null||overIdx.current===null||dragIdx.current===overIdx.current)return;
+    const next=[...products];const[m]=next.splice(dragIdx.current,1);next.splice(overIdx.current,0,m);
+    setProducts(next);dragIdx.current=null;overIdx.current=null;
+  };
+
+  const handleClone=(items)=>{
+    const base=Date.now();
+    setProducts(items.map((it,i)=>({...it,id:base+i})));
+  };
+
+  const DDOptions=[
+    {label:"Clone from a past show",icon:"📋",action:()=>{setShowDD(false);setShowClone(true);}},
+    {label:"Select from closet",    icon:"👗",action:()=>setShowDD(false)},
+    {label:"Add new item",          icon:"✏️",action:()=>setShowDD(false)},
+  ];
+
+  return (
+    <div>
+      {showClone&&<CloneModal onClose={()=>setShowClone(false)} onClone={handleClone}/>}
+      <Breadcrumb items={["Items"]} onBack={onBack}/>
+      <ShowInfoBar show={show}/>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <span style={{fontSize:15,fontWeight:600}}>Listed items <span style={{fontSize:13,fontWeight:400,color:"#999"}}>({products.length})</span></span>
+        <div style={{position:"relative"}}>
+          <BtnP onClick={()=>setShowDD(v=>!v)}>+ Add item ▾</BtnP>
+          {showDD&&(
+            <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:"#fff",border:"1px solid #eee",borderRadius:10,overflow:"hidden",zIndex:50,minWidth:220,boxShadow:"0 8px 24px rgba(0,0,0,.1)"}}>
+              {DDOptions.map((opt,i)=>(
+                <div key={opt.label} onClick={opt.action}
+                  style={{padding:"11px 16px",fontSize:13,cursor:"pointer",color:"#111",
+                    borderBottom:i<DDOptions.length-1?"1px solid #f5f5f5":"none",
+                    display:"flex",alignItems:"center",gap:10}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#f9f9f9"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <span style={{fontSize:15}}>{opt.icon}</span>
+                  {opt.label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      {products.length===0?(
+        <div style={{background:"#fff",border:"1px dashed #ddd",borderRadius:12,padding:48,textAlign:"center",fontSize:13,color:"#999"}}>
+          No items listed yet.<br/>
+          <span style={{color:"#bbb"}}>Use "+ Add item" to add items, or clone from a past show.</span>
+        </div>
+      ):(
+        <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,overflow:"hidden"}}>
+          <div style={{display:"grid",gridTemplateColumns:"28px 44px minmax(0,1fr) 80px 100px 80px 100px",padding:"10px 16px",borderBottom:"1px solid #f0f0f0",fontSize:12,color:"#999",gap:10}}>
+            <div></div><div></div><div>Item name</div><div>Price</div><div>Live price</div><div>Type</div><div></div>
+          </div>
+          {products.map((p,idx)=>(
+            <div key={p.id} draggable onDragStart={()=>onDragStart(idx)} onDragOver={e=>onDragOver(e,idx)} onDrop={onDrop}>
+              <div style={{display:"grid",gridTemplateColumns:"28px 44px minmax(0,1fr) 80px 100px 80px 100px",padding:"13px 16px",gap:10,alignItems:"center",borderBottom:idx<products.length-1&&editingId!==p.id?"1px solid #f5f5f5":"none",background:editingId===p.id?"#fafafa":"transparent",cursor:"grab"}}>
+                <div style={{textAlign:"center",color:"#ccc",fontSize:16}}>⠿</div>
+                <div style={{width:40,height:40,borderRadius:8,background:"#EEF2FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{p.emoji}</div>
+                <div style={{fontSize:13,fontWeight:500,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                <div style={{fontSize:13,color:"#666"}}>{p.price}</div>
+                <div style={{fontSize:13,color:BRAND,fontWeight:600}}>{p.livePrice}</div>
+                <TypeBadge type={p.type}/>
+                <div style={{display:"flex",gap:5}}>
+                  <BtnS onClick={()=>setEditingId(editingId===p.id?null:p.id)} style={{fontSize:11,padding:"4px 9px"}}>{editingId===p.id?"Close":"Edit"}</BtnS>
+                  <BtnS onClick={()=>setProducts(prev=>prev.filter(x=>x.id!==p.id))} style={{fontSize:11,padding:"4px 9px",color:"#A32D2D",borderColor:"#F0B0B0"}}>Remove</BtnS>
+                </div>
+              </div>
+              {editingId===p.id&&(
+                <div style={{padding:"0 16px 16px",background:"#fafafa",borderBottom:idx<products.length-1?"1px solid #f5f5f5":"none"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,paddingTop:14}}>
+                    <FR label="Item name"><input style={iS} defaultValue={p.name}/></FR>
+                    <FR label="Price"><input style={iS} defaultValue={p.price}/></FR>
+                    <FR label="Live price"><input style={iS} defaultValue={p.livePrice}/></FR>
+                    <FR label="Type"><select style={iS} defaultValue={p.type}><option>Buy Now</option><option>Auction</option><option>Giveaway</option></select></FR>
+                  </div>
+                  <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:4}}>
+                    <BtnS onClick={()=>setEditingId(null)}>Cancel</BtnS>
+                    <BtnP onClick={()=>setEditingId(null)}>Save</BtnP>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Preview List Page ──────────────────────────────────────────────────
+
+const PREVIEW_DATA = {
+  2: { title:"Designer Bags Under $50 — Don't Miss!", desc:"Authentic designer bags — all under $50. Verified items, no reserve prices.", from:"2025-04-10", to:"2025-04-14", image:true },
+};
+
+function PreviewListPage({onGo}) {
+  const scheduled = SHOWS.filter(s=>s.status==="scheduled"||s.status==="live");
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <span style={{fontSize:18,fontWeight:600}}>Previews</span>
+      </div>
+      <p style={{fontSize:13,color:"#888",marginBottom:20,lineHeight:1.6}}>
+        Create a preview page for your upcoming shows to attract viewers before you go live.
+      </p>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,overflow:"hidden"}}>
+        <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 140px 130px 160px",padding:"10px 16px",borderBottom:"1px solid #f0f0f0",fontSize:12,color:"#999",gap:8}}>
+          <div>Show</div><div>Preview status</div><div>Display period</div><div>Action</div>
+        </div>
+        {scheduled.map((show,idx)=>{
+          const preview=PREVIEW_DATA[show.id];
+          return (
+            <div key={show.id} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 140px 130px 160px",padding:"14px 16px",gap:8,alignItems:"center",borderBottom:idx<scheduled.length-1?"1px solid #f5f5f5":"none"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                <div style={{width:42,height:42,borderRadius:8,flexShrink:0,background:show.status==="live"?"#FDE8E0":"#EEF2FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{show.emoji}</div>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{show.title}</div>
+                  <div style={{fontSize:12,color:"#999",marginTop:2}}>{show.date}</div>
+                </div>
+              </div>
+              <div>
+                {preview
+                  ? <span style={{background:"#EAF3DE",color:"#3B6D11",fontSize:11,fontWeight:500,padding:"3px 9px",borderRadius:20}}>✓ Registered</span>
+                  : <span style={{background:"#F9F9F9",color:"#aaa",fontSize:11,fontWeight:500,padding:"3px 9px",borderRadius:20}}>Not set</span>
+                }
+              </div>
+              <div style={{fontSize:12,color:"#888"}}>
+                {preview?`${preview.from} ~ ${preview.to}`:"—"}
+              </div>
+              <div>
+                {preview
+                  ? <BtnS onClick={()=>onGo("preview_edit",{...show,hasPreview:true,preview})}>Edit preview</BtnS>
+                  : <BtnP onClick={()=>onGo("preview_edit",{...show,hasPreview:false})} style={{padding:"6px 14px",fontSize:12}}>Create preview</BtnP>
+                }
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Preview Edit Page (2-depth) ─────────────────────────────────────────
+
+// Content block types: "text" | "image"
+const INIT_BLOCKS = [
+  {id:1, type:"image", filled:true},
+  {id:2, type:"text",  value:"Welcome to our Designer Bags show! We\'re bringing you authentic luxury bags at unbeatable prices. Every item is carefully verified and in excellent condition."},
+  {id:3, type:"image", filled:false},
+  {id:4, type:"text",  value:""},
+];
+
+function ImageBlock({filled,onRemove}) {
+  return (
+    <div style={{position:"relative",marginBottom:4}}>
+      <div style={{border:"1px dashed #ddd",borderRadius:10,overflow:"hidden",cursor:"pointer",background:filled?"linear-gradient(135deg,#F7EEF4,#EEF2FF)":"#fafafa",height:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
+        <div style={{fontSize:36}}>{filled?"🖼":"📷"}</div>
+        <div style={{fontSize:13,color:"#999"}}>{filled?"Click to change image":"Click or drag to upload an image"}</div>
+      </div>
+      <button onClick={onRemove}
+        style={{position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(0,0,0,.45)",border:"none",cursor:"pointer",color:"#fff",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
+        ×
+      </button>
+    </div>
+  );
+}
+
+function TextBlock({value,onChange,onRemove}) {
+  return (
+    <div style={{position:"relative",marginBottom:4}}>
+      <textarea
+        defaultValue={value}
+        onChange={e=>onChange(e.target.value)}
+        placeholder="Write a description, highlight key items, or add any info for buyers..."
+        style={{...iS,height:110,resize:"vertical",paddingRight:36,lineHeight:1.6}}
+      />
+      <button onClick={onRemove}
+        style={{position:"absolute",top:8,right:8,width:24,height:24,borderRadius:"50%",background:"#eee",border:"none",cursor:"pointer",color:"#888",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>
+        ×
+      </button>
+    </div>
+  );
+}
+
+function PreviewModal({show,blocks,bannerOn,onClose}) {
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:"#fff",borderRadius:14,width:420,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 60px rgba(0,0,0,.2)"}}>
+        {/* mock phone top bar */}
+        <div style={{background:"#111",borderRadius:"14px 14px 0 0",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{color:"#fff",fontSize:12,fontWeight:500}}>Preview — buyer view</span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#aaa",cursor:"pointer",fontSize:16}}>×</button>
+        </div>
+        {/* show header */}
+        <div style={{padding:"16px 16px 0"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+            <div style={{width:44,height:44,borderRadius:10,background:"#EEF2FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{show?.emoji}</div>
+            <div>
+              <div style={{fontSize:14,fontWeight:600}}>{show?.title}</div>
+              <div style={{fontSize:12,color:"#999"}}>{show?.date}</div>
+            </div>
+          </div>
+          <div style={{height:1,background:"#f0f0f0",marginBottom:16}}/>
+        </div>
+        {/* content blocks */}
+        <div style={{padding:"0 16px"}}>
+          {blocks.map((b,i)=>(
+            <div key={b.id} style={{marginBottom:14}}>
+              {b.type==="image"
+                ? <div style={{height:180,borderRadius:10,background:b.filled?"linear-gradient(135deg,#F7EEF4,#EEF2FF)":"#f5f5f5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,color:"#ccc"}}>
+                    {b.filled?"🖼":"📷"}
+                  </div>
+                : b.value
+                  ? <p style={{fontSize:14,color:"#333",lineHeight:1.7,margin:0}}>{b.value}</p>
+                  : <p style={{fontSize:14,color:"#ccc",lineHeight:1.7,margin:0,fontStyle:"italic"}}>(empty text block)</p>
+              }
+            </div>
+          ))}
+        </div>
+        {/* closet banner */}
+        {bannerOn&&(
+          <div style={{margin:"0 16px 16px",borderRadius:10,background:"linear-gradient(135deg,#7F0353,#B05090)",padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
+            <div style={{fontSize:28}}>🛍</div>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:"#fff",marginBottom:2}}>Live show coming up!</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.75)"}}>{show?.date} · Tap to set a reminder</div>
+            </div>
+          </div>
+        )}
+        <div style={{padding:"0 16px 20px"}}>
+          <button style={{width:"100%",padding:"12px",borderRadius:10,background:BRAND,color:"#fff",border:"none",fontSize:14,fontWeight:600,cursor:"pointer"}}>
+            Set reminder 🔔
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewEditPage({show,onBack}) {
+  const p=show?.preview||{};
+  const [blocks,setBlocks]=useState(show?.hasPreview?INIT_BLOCKS:[
+    {id:Date.now(),type:"image",filled:false},
+    {id:Date.now()+1,type:"text",value:""},
+  ]);
+  const [bannerOn,setBannerOn]=useState(true);
+  const [hasBannerImg,setHasBannerImg]=useState(false);
+  const [showPreview,setShowPreview]=useState(false);
+  const nextId=useRef(Date.now()+100);
+
+  const addBlock=(type)=>{
+    setBlocks(prev=>[...prev,{id:nextId.current++,type,filled:false,value:""}]);
+  };
+  const removeBlock=(id)=>setBlocks(prev=>prev.filter(b=>b.id!==id));
+  const updateText=(id,val)=>setBlocks(prev=>prev.map(b=>b.id===id?{...b,value:val}:b));
+
+  const sectionTitle=(text)=>(
+    <div style={{fontSize:14,fontWeight:600,color:"#444",marginBottom:16,paddingBottom:12,borderBottom:"1px solid #f0f0f0"}}>{text}</div>
+  );
+
+  return (
+    <div>
+      {showPreview&&<PreviewModal show={show} blocks={blocks} bannerOn={bannerOn} onClose={()=>setShowPreview(false)}/>}
+
+      {/* Breadcrumb */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20}}>
+        <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",padding:0}}>← Previews</button>
+        <span style={{color:"#ccc"}}>/</span>
+        <span style={{fontSize:13,fontWeight:500,color:"#111"}}>{show?.hasPreview?"Edit preview":"Create preview"}</span>
+      </div>
+
+      {/* Show info bar */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fff",border:"1px solid #eee",borderRadius:12,padding:"14px 20px",marginBottom:24}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:40,height:40,borderRadius:8,background:"#EEF2FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{show?.emoji}</div>
+          <div>
+            <div style={{fontSize:14,fontWeight:500}}>{show?.title}</div>
+            <div style={{fontSize:12,color:"#999",marginTop:2}}>{show?.date}</div>
+          </div>
+        </div>
+        <Badge status={show?.status}/>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:24,alignItems:"start"}}>
+
+        {/* LEFT: editor */}
+        <div>
+          <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:28,marginBottom:20}}>
+            {sectionTitle("Headline")}
+            <FR label="Title" hint="*">
+              <input style={iS} defaultValue={p.title||""} placeholder="e.g. Designer Bags Under $50 — Don't Miss!"/>
+            </FR>
+          </div>
+
+          <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:28,marginBottom:20}}>
+            {sectionTitle("Description")}
+            <p style={{fontSize:13,color:"#888",marginBottom:18,lineHeight:1.6}}>
+              Build your preview using a mix of images and text blocks. Drag to reorder.
+            </p>
+
+            {/* Content blocks */}
+            <div style={{marginBottom:16}}>
+              {blocks.map((b,idx)=>(
+                <div key={b.id} style={{marginBottom:12}}>
+                  {b.type==="image"
+                    ? <ImageBlock filled={b.filled} onRemove={()=>removeBlock(b.id)}/>
+                    : <TextBlock value={b.value} onChange={v=>updateText(b.id,v)} onRemove={()=>removeBlock(b.id)}/>
+                  }
+                </div>
+              ))}
+            </div>
+
+            {/* Add block buttons */}
+            <div style={{display:"flex",gap:10,paddingTop:4}}>
+              <button onClick={()=>addBlock("image")}
+                style={{flex:1,padding:"10px",border:"1px dashed #ddd",borderRadius:8,background:"#fafafa",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor=BRAND}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="#ddd"}>
+                📷 Add image
+              </button>
+              <button onClick={()=>addBlock("text")}
+                style={{flex:1,padding:"10px",border:"1px dashed #ddd",borderRadius:8,background:"#fafafa",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor=BRAND}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="#ddd"}>
+                ✏️ Add text
+              </button>
+            </div>
+          </div>
+
+          <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:28,marginBottom:20}}>
+            {sectionTitle("Display period")}
+            <p style={{fontSize:13,color:"#888",marginBottom:16,lineHeight:1.6}}>
+              Set the dates your preview will be visible to buyers. We recommend starting 3–7 days before your show.
+            </p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <FR label="Start date"><input type="date" style={iS} defaultValue={p.from||"2025-04-10"}/></FR>
+              <FR label="End date"><input type="date" style={iS} defaultValue={p.to||"2025-04-14"}/></FR>
+            </div>
+          </div>
+
+          {/* Closet banner */}
+          <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:28,marginBottom:24}}>
+            {sectionTitle("Closet banner")}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:bannerOn?20:0}}>
+              <div style={{flex:1,paddingRight:16}}>
+                <div style={{fontSize:14,fontWeight:500,marginBottom:4}}>Show banner in closet</div>
+                <div style={{fontSize:13,color:"#666",lineHeight:1.5}}>
+                  Display a promotional banner on your closet page while the preview is active. Buyers who visit your closet will see the upcoming show.
+                </div>
+              </div>
+              <div onClick={()=>setBannerOn(v=>!v)}
+                style={{width:44,height:24,borderRadius:12,cursor:"pointer",flexShrink:0,background:bannerOn?BRAND:"#ccc",position:"relative",transition:"background .2s",marginTop:2}}>
+                <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:bannerOn?23:3,transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}}/>
+              </div>
+            </div>
+            {bannerOn&&(
+              <div>
+                <div style={{fontSize:13,fontWeight:500,color:"#111",marginBottom:8}}>
+                  Banner image <span style={{color:"#999",fontWeight:400}}>(recommended: 3:1 ratio)</span>
+                </div>
+                <div onClick={()=>setHasBannerImg(v=>!v)}
+                  style={{border:"1px dashed #ddd",borderRadius:10,overflow:"hidden",cursor:"pointer",background:hasBannerImg?"linear-gradient(135deg,#7F0353,#B05090)":"#fafafa",height:120,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,transition:"background .2s"}}>
+                  {hasBannerImg
+                    ? <><div style={{fontSize:28}}>🛍</div><div style={{fontSize:12,color:"rgba(255,255,255,.8)"}}>Click to change banner</div></>
+                    : <><div style={{fontSize:28}}>🖼</div><div style={{fontSize:13,color:"#999"}}>Click or drag to upload a banner image</div></>
+                  }
+                </div>
+                <div style={{fontSize:12,color:"#aaa",marginTop:8}}>
+                  If no banner image is uploaded, a default banner with your show title will be shown.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <BtnP>{show?.hasPreview?"Save changes":"Publish preview"}</BtnP>
+            <BtnS onClick={()=>setShowPreview(true)}>Preview ↗</BtnS>
+            <BtnS onClick={onBack}>Cancel</BtnS>
+            {show?.hasPreview&&(
+              <BtnS style={{marginLeft:"auto",color:"#A32D2D",borderColor:"#F0B0B0"}}>Remove preview</BtnS>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: live mini-preview */}
+        <div style={{position:"sticky",top:76}}>
+          <div style={{fontSize:13,fontWeight:500,color:"#888",marginBottom:10,textAlign:"center"}}>Live preview</div>
+          <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,overflow:"hidden"}}>
+            <div style={{background:"#111",padding:"8px 12px",display:"flex",alignItems:"center",gap:6}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:"#FF5F57"}}/>
+              <div style={{width:8,height:8,borderRadius:"50%",background:"#FFBD2E"}}/>
+              <div style={{width:8,height:8,borderRadius:"50%",background:"#28C840"}}/>
+              <span style={{fontSize:11,color:"#666",marginLeft:6}}>poshmark.com/show/preview</span>
+            </div>
+            <div style={{padding:14,maxHeight:520,overflowY:"auto"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:34,height:34,borderRadius:8,background:"#EEF2FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{show?.emoji}</div>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600,lineHeight:1.3}}>{show?.title}</div>
+                  <div style={{fontSize:11,color:"#999"}}>{show?.date}</div>
+                </div>
+              </div>
+              <div style={{height:1,background:"#f0f0f0",marginBottom:12}}/>
+              {blocks.map(b=>(
+                <div key={b.id} style={{marginBottom:10}}>
+                  {b.type==="image"
+                    ? <div style={{height:110,borderRadius:8,background:b.filled?"linear-gradient(135deg,#F7EEF4,#EEF2FF)":"#f5f5f5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,color:"#ccc"}}>{b.filled?"🖼":"📷"}</div>
+                    : b.value
+                      ? <p style={{fontSize:12,color:"#333",lineHeight:1.6,margin:0}}>{b.value}</p>
+                      : <p style={{fontSize:12,color:"#ddd",margin:0,fontStyle:"italic"}}>(empty text)</p>
+                  }
+                </div>
+              ))}
+              {bannerOn&&(
+                <div style={{borderRadius:8,background:"linear-gradient(135deg,#7F0353,#B05090)",padding:"10px 12px",display:"flex",alignItems:"center",gap:8,marginTop:4}}>
+                  <div style={{fontSize:20}}>🛍</div>
+                  <div>
+                    <div style={{fontSize:11,fontWeight:600,color:"#fff",marginBottom:1}}>Live show coming up!</div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,.75)"}}>{show?.date}</div>
+                  </div>
+                </div>
+              )}
+              <button style={{width:"100%",marginTop:12,padding:"9px",borderRadius:8,background:BRAND,color:"#fff",border:"none",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                Set reminder 🔔
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── Calendar Page (2-depth under Shows) ───────────────────────────────
+
+function CalendarPage({onBack}) {
+  const S=2,D=30; const cells=[];
+  for(let i=0;i<S;i++)cells.push({type:"prev",day:30-S+1+i});
+  for(let d=1;d<=D;d++)cells.push({type:"cur",day:d});
+  const rem=(S+D)%7; if(rem)for(let i=1;i<=7-rem;i++)cells.push({type:"next",day:i});
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20}}>
+        <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",padding:0}}>← Shows</button>
+        <span style={{color:"#ccc"}}>/</span>
+        <span style={{fontSize:13,fontWeight:500,color:"#111"}}>Calendar</span>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,overflow:"hidden"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:"1px solid #f0f0f0"}}>
+          <span style={{fontSize:15,fontWeight:600}}>April 2025</span>
+          <div style={{display:"flex",gap:6}}>
+            {["‹","Today","›"].map(t=><button key={t} style={{background:"none",border:"1px solid #eee",borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:t==="Today"?13:16,color:"#666"}}>{t}</button>)}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"1px solid #f0f0f0"}}>
+          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=><div key={d} style={{padding:8,textAlign:"center",fontSize:12,color:"#999",fontWeight:500}}>{d}</div>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+          {cells.map((cell,idx)=>{
+            const show=cell.type==="cur"?CAL_SHOWS.find(s=>s.day===cell.day):null;
+            const isToday=cell.type==="cur"&&cell.day===12;
+            return (
+              <div key={idx} style={{minHeight:88,padding:"6px 8px",borderRight:(idx+1)%7===0?"none":"1px solid #f5f5f5",borderBottom:"1px solid #f5f5f5",background:cell.type!=="cur"?"#fafafa":"transparent"}}>
+                <div style={{width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:4,background:isToday?BRAND:"transparent",color:isToday?"#fff":cell.type!=="cur"?"#ccc":"#333",fontSize:12,fontWeight:isToday?600:400}}>{cell.day}</div>
+                {show&&(
+                  <div style={{background:show.live?"#FDECEA":show.status==="ended"?"#F1EFE8":BRAND_LIGHT,color:show.live?"#A32D2D":show.status==="ended"?"#5F5E5A":BRAND,fontSize:11,padding:"3px 6px",borderRadius:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:"pointer",marginBottom:2}}>
+                    {show.live?"● ":""}{show.title}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{marginTop:20,display:"flex",gap:16}}>
+        {[["#FDECEA","#A32D2D","● Live now"],["#F7EEF4","#7F0353","Scheduled"],["#F1EFE8","#5F5E5A","Ended"]].map(([bg,c,l])=>(
+          <div key={l} style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#666"}}>
+            <div style={{width:12,height:12,borderRadius:2,background:bg,border:"1px solid "+c,flexShrink:0}}/>
+            {l}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard Page ─────────────────────────────────────────────────────
+
+function DashboardPage() {
+  const max=Math.max(...BAR_DATA.map(d=>d.val));
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <span style={{fontSize:18,fontWeight:600}}>Channel dashboard</span>
+        <select style={{...iS,width:"auto",padding:"6px 10px"}}><option>Last 30 days</option><option>Last 90 days</option><option>All time</option></select>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <div style={{width:40,height:40,borderRadius:"50%",background:"#F5C4B3",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>👩</div>
+        <div><div style={{fontSize:14,fontWeight:600}}>@fashionwith_sara</div><div style={{fontSize:12,color:"#999"}}>Posh Show Seller since Jan 2024</div></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
+        <SC label="Total shows" value="24" sub="+3 this month"/>
+        <SC label="Total GMV" value="$18,340" sub="$2,760 this month"/>
+        <SC label="Items sold" value="412" sub="Avg. 17 per show"/>
+        <SC label="Total viewers" value="6,820" sub="Avg. 284 per show"/>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:20,marginBottom:20}}>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>GMV by show</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:8,height:120}}>
+          {BAR_DATA.map((d,i)=>(
+            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{fontSize:11,color:"#888"}}>${(d.val/1000).toFixed(1)}k</div>
+              <div style={{width:"100%",height:Math.round(d.val/max*90),background:"#E8BFD4",borderRadius:"3px 3px 0 0",cursor:"pointer",transition:"background .12s"}}
+                onMouseEnter={e=>e.target.style.background=BRAND}
+                onMouseLeave={e=>e.target.style.background="#E8BFD4"}/>
+              <div style={{fontSize:11,color:"#aaa"}}>{d.label.split(" ")[1]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #eee",borderRadius:12,padding:20}}>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Recent show performance</div>
+        <table style={{width:"100%",fontSize:13,borderCollapse:"collapse"}}>
+          <thead><tr style={{borderBottom:"1px solid #f0f0f0"}}>
+            {["Show title","Date","Peak viewers","Total viewers","GMV"].map(h=><th key={h} style={{textAlign:h==="Show title"?"left":"right",padding:"8px 0",fontWeight:500,color:"#999",fontSize:12}}>{h}</th>)}
+          </tr></thead>
+          <tbody>{SHOWS.filter(s=>s.status==="ended").map((s,i,arr)=>(
+            <tr key={s.id} style={{borderBottom:i<arr.length-1?"1px solid #f5f5f5":"none"}}>
+              <td style={{padding:"10px 0"}}>{s.title}</td>
+              <td style={{textAlign:"right",color:"#888"}}>{s.date.split(" ")[0]}</td>
+              <td style={{textAlign:"right",color:"#888"}}>{s.peakViewers}</td>
+              <td style={{textAlign:"right",color:"#888"}}>{s.totalViewers}</td>
+              <td style={{textAlign:"right",fontWeight:600}}>${s.gmv?.toLocaleString()}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Nav & App ──────────────────────────────────────────────────────────
+
+const NAV=[
+  {id:"shows",    label:"Shows",     group:"LIVE"},
+  {id:"preview",  label:"Previews",  group:"LIVE"},
+  {id:"dashboard",label:"Dashboard", group:"ANALYTICS"},
+];
+const SUB=["edit","stats","products","calendar","preview_edit"];
+
+function App() {
+  const [page,setPage]=useState("shows");
+  const [sub,setSub]=useState(null);
+  const [subData,setSubData]=useState(null);
+
+  const goSub=(type,data)=>{setSub(type);setSubData(data);};
+  const back=()=>{setSub(null);setSubData(null);};
+
+  const titles={shows:"Shows",preview:"Previews",dashboard:"Channel dashboard",
+    edit:subData?"Edit show":"Schedule a show",stats:"Show stats",products:"Item management",
+    calendar:"Show calendar",preview_edit:subData?.hasPreview?"Edit preview":"Create preview"};
+  const cur=sub||page;
+
+  return (
+    <div style={{display:"flex",minHeight:"100vh",background:"#F5F5F5",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
+      {/* Sidebar */}
+      <div style={{width:220,flexShrink:0,background:"#fff",borderRight:"1px solid #eee",display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh"}}>
+        <div style={{padding:"14px 20px",borderBottom:"1px solid "+BRAND_DARK,background:BRAND}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+            <span style={{background:"#fff",color:BRAND,fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:3,letterSpacing:".05em"}}>POSH</span>
+            <span style={{background:"rgba(255,255,255,0.22)",color:"#fff",fontSize:10,fontWeight:600,padding:"2px 6px",borderRadius:3,letterSpacing:".05em"}}>LIVE</span>
+          </div>
+          <div style={{fontSize:13,fontWeight:500,color:"#fff",letterSpacing:".01em"}}>Seller Studio</div>
+        </div>
+        {["LIVE","ANALYTICS"].map(g=>(
+          <div key={g} style={{padding:"8px 0"}}>
+            <div style={{fontSize:11,color:"#bbb",padding:"8px 20px 4px",letterSpacing:".06em"}}>{g}</div>
+            {NAV.filter(n=>n.group===g).map(n=>{
+              const active=cur===n.id||(n.id==="shows"&&["edit","stats","products","calendar"].includes(cur))||(n.id==="preview"&&cur==="preview_edit");
+              return (
+                <div key={n.id} onClick={()=>{setSub(null);setSubData(null);setPage(n.id);}}
+                  style={{padding:"8px 20px",fontSize:13,cursor:"pointer",color:active?BRAND:"#666",borderLeft:`2px solid ${active?BRAND:"transparent"}`,background:active?BRAND_LIGHT:"transparent",fontWeight:active?500:400,transition:"background .1s"}}>
+                  {n.label}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        <div style={{marginTop:"auto",padding:"16px 20px",borderTop:"1px solid #f0f0f0"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:32,height:32,borderRadius:"50%",background:"#F5C4B3",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>👩</div>
+            <div>
+              <div style={{fontSize:12,fontWeight:500}}>@fashionwith_sara</div>
+              <div style={{fontSize:11,color:"#999"}}>Seller</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
+        <div style={{height:48,background:"#fff",borderBottom:"1px solid #eee",display:"flex",alignItems:"center",padding:"0 28px",position:"sticky",top:0,zIndex:10}}>
+          <span style={{fontSize:14,fontWeight:600,color:"#111"}}>{titles[cur]}</span>
+          <div style={{flex:1}}/>
+          <span style={{fontSize:13,color:"#888"}}>@fashionwith_sara</span>
+        </div>
+        <div style={{flex:1,padding:28,overflowY:"auto"}}>
+          {sub==="edit"        &&<EditPage        show={subData} onBack={back}/>}
+          {sub==="stats"       &&<StatsPage       show={subData} onBack={back}/>}
+          {sub==="products"    &&<ProductsPage    show={subData} onBack={back}/>}
+          {sub==="calendar"    &&<CalendarPage    onBack={back}/>}
+          {sub==="preview_edit"&&<PreviewEditPage show={subData} onBack={()=>{setSub(null);setSubData(null);}}/>}
+          {!sub&&page==="shows"    &&<ShowsPage    onGo={goSub}/>}
+          {!sub&&page==="preview"  &&<PreviewListPage onGo={goSub}/>}
+          {!sub&&page==="dashboard"&&<DashboardPage/>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
